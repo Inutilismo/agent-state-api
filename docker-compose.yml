@@ -1,0 +1,45 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: agentstate-postgres
+    environment:
+      POSTGRES_DB: AgentStateDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentstate-network
+
+  # .NET API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentstate-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=AgentStateDb;Username=postgres;Password=postgres123
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    networks:
+      - agentstate-network
+
+volumes:
+  postgres_data:
+
+networks:
+  agentstate-network:
+    driver: bridge
